@@ -48,7 +48,10 @@ import requests
 from yarg import json2package
 from yarg.exceptions import HTTPError
 
-from pipreqs import __version__
+#from pipreqs import __version__
+__author__ = 'Vadim Kravcenko'
+__email__ = 'vadim.kravcenko@gmail.com'
+__version__ = '0.4.11'
 
 REGEXP = [
     re.compile(r'^import (.+)$'),
@@ -210,44 +213,19 @@ def get_imports_info(
 
 def get_locally_installed_packages(encoding=None):
     packages = []
-    ignore = ["tests", "_tests", "egg", "EGG", "info"]
     for path in sys.path:
-        for root, dirs, files in os.walk(path):
-            for item in files:
-                if "top_level" in item:
-                    item = os.path.join(root, item)
-                    with open(item, "r", encoding=encoding) as f:
-                        package = root.split(os.sep)[-1].split("-")
-                        try:
-                            top_level_modules = f.read().strip().split("\n")
-                        except:  # NOQA
-                            # TODO: What errors do we intend to suppress here?
-                            continue
-
-                        # filter off explicitly ignored top-level modules
-                        # such as test, egg, etc.
-                        filtered_top_level_modules = list()
-
-                        for module in top_level_modules:
-                            if (
-                                (module not in ignore) and
-                                (package[0] not in ignore)
-                            ):
-                                # append exported top level modules to the list
-                                filtered_top_level_modules.append(module)
-
-                        version = None
-                        if len(package) > 1:
-                            version = package[1].replace(
-                                ".dist", "").replace(".egg", "")
-
-                        # append package: top_level_modules pairs
-                        # instead of top_level_module: package pairs
+        for root in os.walk(path):
+            if root[0].endswith('dist-info'):
+                package = root[0].split(os.sep)[-1].split("-")
                         packages.append({
                             'name': package[0],
-                            'version': version,
-                            'exports': filtered_top_level_modules
+                    'version': package[1].replace(".dist", "").replace(".egg", ""),
+                    'exports': None
                         })
+        
+            
+    packages = [dict(t) for t in {tuple(d.items()) for d in packages}]
+    packages.sort(key=lambda x:x['name'].upper())
     return packages
 
 
@@ -260,7 +238,7 @@ def get_import_local(imports, encoding=None):
             # if candidate import name matches export name
             # or candidate import name equals to the package name
             # append it to the result
-            if item in package['exports'] or item == package['name']:
+            if (hasattr(package, 'exports') and item in package['exports']) or item == package['name']:
                 result.append(package)
 
     # removing duplicates of package/version
@@ -531,4 +509,5 @@ def main():  # pragma: no cover
 
 
 if __name__ == '__main__':
+    print("program start")
     main()  # pragma: no cover
